@@ -1,142 +1,133 @@
 #!/bin/bash
-#   ___        __| (_) __ _
+#   ___        __| (_) __ _ 
 #  / _ \_____ / _` | |/ _` |
 # |  __/_____| (_| | | (_| |
 #  \___|      \__,_|_|\__, |
-#                     |___/
-# Author: galaxy-cli
+#                     |___/ 
+# e-dig: The ultimate tool for high-quality audio sampling
+#
 # Project: https://github.com/galaxy-cli/e-dig
-# e-dig is a simple Bash utility for downloading audio samples
 
-# Function: print usage info
+# --- USAGE ---
 print_usage() {
     cat <<EOF
+DESCRIPTION
+  e-dig is a lightweight CLI tool for music producers and crate-diggers.
+  It extracts high-quality audio samples with clean metadata (Channel, Date, Title)
+
 USAGE
-  e-dig -u                  Update or install yt-dlp to latest version
-  e-dig -d LINK1 [LINK2...] Download YouTube audio as MP3 from one or more URLs
-OPTIONS
-  -u    Update yt-dlp to the latest version (install if missing)
-  -d    Download audio from one or more YouTube URLs
-  -h    Show this help message
+  e-dig [OPTION]
+
+OPTION
+  --help            Show this help message
+  -v, --version     Show current yt-dlp version
+  -p, --path [DIR]  Specify a directory to save the downloads
+  --mpv             Immediately play the audio after downloading
+  -i, --initialize  Install or update dependencies (yt-dlp, ffmpeg, & mpv)
+  -u, --url         Triggers a safe prompt to paste your YouTube URL
+  -b, --batch       Batch processses text file of YouTube URL
+
+EXAMPLES
+  e-dig -u                       Quickly download a sample to the current folder
+  e-dig --path ~/Samples -u      Download a sample to a specific "Samples" folder
+  e-dig --mpv --url              Download and play immediately to check quality
+  e-dig -i                       Set up or update ffmpeg, mpv, and yt-dlp
+  e-dig -p ./Drums -mpv -u       Download a drum break to a subfolder and play it
+  e-dig --batch links.txt        Download every URL listed in a text file
 EOF
 }
 
-
-# Function: Install yt-dlp if missing
-install_yt_dlp() {
-    echo "yt-dlp not found. Installing..."
-    sudo apt update
-    # Try install package first
-    if sudo apt install -y yt-dlp; then
-        echo "yt-dlp installed via apt."
-        return 0
-    else
-        # If apt install failed, fallback to downloading latest binary
-        echo "apt install failed or yt-dlp package not found. Downloading latest binary..."
-        sudo wget https://github.com/yt-dlp/yt-dlp/releases/latest/download/yt-dlp -O /usr/bin/yt-dlp
-        sudo chmod a+rx /usr/bin/yt-dlp
-        if command -v yt-dlp >/dev/null 2>&1; then
-            echo "yt-dlp installed successfully."
-            return 0
-        else
-            echo "Failed to install yt-dlp."
-            return 1
-        fi
+# --- DEPENDENCIES ---
+install_deps() {
+    echo "Checking dependencies..."
+    if ! command -v pipx >/dev/null 2>&1; then
+        sudo apt update -qq && sudo apt install -y -qq pipx
+        pipx ensurepath
     fi
+    if ! command -v ffmpeg >/dev/null 2>&1 || ! command -v mpv >/dev/null 2>&1; then
+        sudo apt update -qq && sudo apt install -y -qq ffmpeg mpv
+    fi
+    if pipx list | grep -q "yt-dlp"; then
+        pipx upgrade yt-dlp
+    else
+        pipx install "yt-dlp[default]"
+    fi
+    echo "All dependencies ready"
 }
 
-
-# Function: Update yt-dlp (assumes installed)
-update_yt_dlp() {
-    echo "Updating yt-dlp to latest version..."
-    # Use yt-dlp's built-in update command if available
-    if yt-dlp -U; then
-        echo "yt-dlp updated successfully."
-        return 0
-    else
-        echo "yt-dlp update command failed. Attempting manual download..."
-        sudo wget https://github.com/yt-dlp/yt-dlp/releases/latest/download/yt-dlp -O /usr/bin/yt-dlp
-        sudo chmod a+rx /usr/bin/yt-dlp
-        # Verify installation
-        if command -v yt-dlp >/dev/null 2>&1; then
-            echo "yt-dlp updated via manual download."
-            return 0
-        else
-            echo "Failed to update yt-dlp."
-            return 1
-        fi
-    fi
-}
-
-
-# Parse options and arguments
-
+# --- ARGUMENT PARSING ---
 if [[ $# -eq 0 ]]; then
-    print_usage
+    echo "Try 'e-dig --help' for more information" >&2
     exit 1
 fi
 
+SAVE_PATH="."
+PLAY_NOW=false
 DOWNLOAD_URLS=()
-UPDATE_FLAG=false
-SHOW_HELP=false
-
-# We'll manually parse because getopts only takes single-argument options
 
 while [[ $# -gt 0 ]]; do
     case "$1" in
-        -u)
-            UPDATE_FLAG=true
+        --help) print_usage; exit 0 ;;
+        -v|--version) yt-dlp --version; exit 0 ;;
+        -p|--path) SAVE_PATH="$2"; shift 2 ;;
+        --mpv) PLAY_NOW=true; shift ;;
+        -i|--initialize) install_deps; exit 0 ;;
+        -u|--url)
             shift
+            if [[ $# -eq 0 ]]; then
+                echo -n "Paste YouTube URL and press Enter: "
+                read -ra sample
+                DOWNLOAD_URLS+=("$sample") 
+            fi
             ;;
-        -d)
-            shift
-            # Collect all remaining args as URLs until an option or no more args
-            while [[ $# -gt 0 && ! "$1" =~ ^- ]]; do
-                DOWNLOAD_URLS+=("$1")
-                shift
-            done
+        -b|--batch)
+            if [[ -f "$2" ]]; then
+                while IFS= read -r line; do
+                    [[ -n "$line" ]] && DOWNLOAD_URLS+=("$line")
+                done < "$2"
+                shift 2
+            else
+                echo "ERROR - File '$2' not found" >&2
+                exit 1
+            fi
             ;;
-        -h)
-            SHOW_HELP=true
-            shift
-            ;;
-        *)
-            echo "Invalid option or argument: $1"
-            print_usage
-            exit 1
+        *) 
+            echo "Invalid option or argument '$1'" >&2
+            echo "Try 'e-dig --help' for more information" >&2
+            exit 1 
             ;;
     esac
 done
 
-if $SHOW_HELP; then
-    print_usage
-    exit 0
-fi
-
-if $UPDATE_FLAG; then
-    if ! command -v yt-dlp >/dev/null 2>&1; then
-        install_yt_dlp || exit 1
-    else
-        update_yt_dlp || exit 1
-    fi
-    exit 0
-fi
-
-if [[ ${#DOWNLOAD_URLS[@]} -eq 0 ]]; then
-    echo "Error: No URLs provided for download."
-    print_usage
-    exit 1
-fi
-
-if ! command -v yt-dlp >/dev/null 2>&1; then
-    echo "yt-dlp is not installed. Attempting to install first."
-    install_yt_dlp || exit 1
-fi
-
+# --- DOWNLOAD LOGIC ---
 for url in "${DOWNLOAD_URLS[@]}"; do
-    echo "Downloading audio from $url as MP3..."
-    yt-dlp -x --audio-format mp3 "$url"
-    if [[ $? -ne 0 ]]; then
-        echo "Failed to download from $url"
+    clean_url="${url%%&*}"
+    echo "Digging..."
+    
+    FILENAME=$(yt-dlp -x \
+        -P "$SAVE_PATH" \
+        --audio-format flac \
+        --audio-quality 0 \
+        --newline \
+        --no-warnings \
+        --no-playlist \
+        --output "%(title)s.%(ext)s" \
+        --embed-metadata \
+        --print "after_move:filepath" \
+        "$clean_url")
+
+    if [[ $? -eq 0 ]]; then
+        FINAL_FILE=$(echo "$FILENAME" | tail -n 1)
+        echo "$(basename "$FINAL_FILE") created"
+        
+        if $PLAY_NOW; then
+            echo "Auditioning sample..."
+            mpv --no-video "$FINAL_FILE"
+        fi
+    else
+        echo "ERROR - Download failed" >&2
     fi
 done
+
+echo "--------------------------------"
+echo "Session complete. Happy producing!"
