@@ -106,7 +106,7 @@ for url in "${DOWNLOAD_URLS[@]}"; do
     
     FILENAME=$(yt-dlp -x \
         -P "$SAVE_PATH" \
-        --audio-format flac \
+        --audio-format wav \
         --audio-quality 0 \
         --newline \
         --no-warnings \

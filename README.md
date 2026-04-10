@@ -4,7 +4,7 @@ The ultimate lightweight CLI tool for high-quality audio sampling and crate-digg
 `e-dig` automates the process of pulling high-fidelity audio from the web, handling the heavy lifting of metadata tagging and file conversion so you can stay in the creative flow.
 
 ## Features
-- **High-Fidelity:** Downloads in lossless FLAC format by default.
+- **High-Fidelity:** Downloads in MP3 format by default.
 - **Auto-Tagging:** Automatically embeds Channel, Date, and Title into metadata.
 - **Batch Processing:** Dig through entire lists of URLs via text files.
 - **Instant Audition:** Use the `--mpv` flag to listen to your sample the second it finishes.
