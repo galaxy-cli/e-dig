@@ -1,8 +1,8 @@
 #!/bin/bash
-#   ___        __| (_) __ _ 
-#  / _ \_____ / _` | |/ _` |
-# |  __/_____| (_| | | (_| |
-#  \___|      \__,_|_|\__, |
+#     ___        __| (_) __ _ 
+#    / _ \_____ / _` | |/ _` |
+#   |  __/_____| (_| | | (_| |
+#    \___|      \__,_|_|\__, |
 #                     |___/ 
 #
 # e-dig - A lightweight CLI audio sampling and crate-digging utility
@@ -11,7 +11,7 @@
 
 # --- PROGRAM CONFIGURATION ---
 PROGRAM_NAME="${0##*/}"
-VERSION="1.0.0"
+VERSION="1.0.1"
 
 # --- SYSTEM DEPENDENCY INSTALLER ---
 install_deps() {
