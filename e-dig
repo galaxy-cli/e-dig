@@ -4,128 +4,212 @@
 # |  __/_____| (_| | | (_| |
 #  \___|      \__,_|_|\__, |
 #                     |___/ 
-# e-dig: The ultimate tool for high-quality audio sampling
+#
+# e-dig - A lightweight CLI audio sampling and crate-digging utility
 #
 # Project: https://github.com/galaxy-cli/e-dig
 
-# --- USAGE ---
-print_usage() {
-    cat <<EOF
-DESCRIPTION
-  e-dig is a lightweight CLI tool for music producers and crate-diggers.
-  It extracts high-quality audio samples with clean metadata (Channel, Date, Title)
+# --- PROGRAM CONFIGURATION ---
+PROGRAM_NAME="${0##*/}"
+VERSION="1.0.0"
 
-USAGE
-  e-dig [OPTION]
-
-OPTION
-  --help            Show this help message
-  -v, --version     Show current yt-dlp version
-  -p, --path [DIR]  Specify a directory to save the downloads
-  --mpv             Immediately play the audio after downloading
-  -i, --initialize  Install or update dependencies (yt-dlp, ffmpeg, & mpv)
-  -u, --url         Triggers a safe prompt to paste your YouTube URL
-  -b, --batch       Batch processses text file of YouTube URL
-
-EXAMPLES
-  e-dig -u                       Quickly download a sample to the current folder
-  e-dig --path ~/Samples -u      Download a sample to a specific "Samples" folder
-  e-dig --mpv --url              Download and play immediately to check quality
-  e-dig -i                       Set up or update ffmpeg, mpv, and yt-dlp
-  e-dig -p ./Drums -mpv -u       Download a drum break to a subfolder and play it
-  e-dig --batch links.txt        Download every URL listed in a text file
-EOF
-}
-
-# --- DEPENDENCIES ---
+# --- SYSTEM DEPENDENCY INSTALLER ---
 install_deps() {
-    echo "Checking dependencies..."
+    echo "${PROGRAM_NAME}: verifying external software components..." >&2
     if ! command -v pipx >/dev/null 2>&1; then
         sudo apt update -qq && sudo apt install -y -qq pipx
-        pipx ensurepath
+        pipx ensurepath --quiet
     fi
     if ! command -v ffmpeg >/dev/null 2>&1 || ! command -v mpv >/dev/null 2>&1; then
         sudo apt update -qq && sudo apt install -y -qq ffmpeg mpv
     fi
     if pipx list | grep -q "yt-dlp"; then
-        pipx upgrade yt-dlp
+        pipx upgrade yt-dlp --quiet
     else
-        pipx install "yt-dlp[default]"
+        pipx install "yt-dlp[default]" --quiet
     fi
-    echo "All dependencies ready"
+    echo "${PROGRAM_NAME}: system requirements ready" >&2
 }
 
+# --- USAGE ---
+usage() {
+    cat <<EOF
+Usage: ${PROGRAM_NAME} [OPTION]...
+
+Extract high-quality audio samples with clean metadata from the web.
+
+Mandatory arguments to long options are mandatory for short options too.
+  -b, --batch=FILE       batch process a list of YouTube URLs from a text FILE
+  -i, --initialize       install or update script requirements (yt-dlp, ffmpeg, mpv)
+      --mpv              immediately play the audio stream after downloading
+  -p, --path=DIR         specify a custom destination target download DIR
+  -u, --url              trigger an interactive secure prompt to paste a single URL
+  -v, --version          output upstream engine version information and exit
+      --help             display this help and exit
+
+Examples:
+  ${PROGRAM_NAME} -u
+  ${PROGRAM_NAME} -p ~/Samples -u
+  ${PROGRAM_NAME} --mpv -u
+  ${PROGRAM_NAME} -b links.txt
+
+Report bugs to: <207926666+galaxy-cli@users.noreply.github.com>
+EOF
+}
+
+# --- VERSION ---
+show_version() {
+    if ! command -v yt-dlp &>/dev/null; then
+        echo "${PROGRAM_NAME} ${VERSION} (yt-dlp missing -- run with -i to install)"
+    else
+        local ytdl_ver
+        ytdl_ver=$(yt-dlp --version 2>/dev/null)
+        echo "${PROGRAM_NAME} ${VERSION} (yt-dlp engine version ${ytdl_ver})"
+    fi
+}
+
+# --- INITIALIZE VARIABLES ---
+save_path="."
+play_now=false
+download_urls=()
+batch_file=""
+do_initialize=false
+
 # --- ARGUMENT PARSING ---
-if [[ $# -eq 0 ]]; then
-    echo "Try 'e-dig --help' for more information" >&2
-    exit 1
-fi
-
-SAVE_PATH="."
-PLAY_NOW=false
-DOWNLOAD_URLS=()
-
 while [[ $# -gt 0 ]]; do
     case "$1" in
-        --help) print_usage; exit 0 ;;
-        -v|--version) yt-dlp --version; exit 0 ;;
-        -p|--path) SAVE_PATH="$2"; shift 2 ;;
-        --mpv) PLAY_NOW=true; shift ;;
-        -i|--initialize) install_deps; exit 0 ;;
+        --help) 
+            usage
+            exit 0 
+            ;;
+        -v|--version) 
+            show_version
+            exit 0 
+            ;;
+        -p|--path) 
+            [[ -z "$2" || "$2" == -* ]] && { echo "${PROGRAM_NAME}: option requires an argument -- 'p'" >&2; exit 1; }
+            save_path="$2" 
+            shift 2 
+            ;;
+        --mpv) 
+            play_now=true
+            shift 
+            ;;
+        -i|--initialize) 
+            do_initialize=true
+            shift 
+            ;;
         -u|--url)
-            shift
-            if [[ $# -eq 0 ]]; then
+            # Flag matching condition: handles URLs directly if pasted or delays to prompt
+            if [[ -n "$2" && "$2" != -* ]]; then
+                download_urls+=("$2")
+                shift 2
+            else
                 echo -n "Paste YouTube URL and press Enter: "
-                read -ra sample
-                DOWNLOAD_URLS+=("$sample") 
+                read -r pasted_url
+                if [[ -n "${pasted_url//[:space:]/}" ]]; then
+                    download_urls+=("$pasted_url")
+                fi
+                shift
             fi
             ;;
         -b|--batch)
-            if [[ -f "$2" ]]; then
-                while IFS= read -r line; do
-                    [[ -n "$line" ]] && DOWNLOAD_URLS+=("$line")
-                done < "$2"
-                shift 2
-            else
-                echo "ERROR - File '$2' not found" >&2
-                exit 1
-            fi
+            [[ -z "$2" || "$2" == -* ]] && { echo "${PROGRAM_NAME}: option requires an argument -- 'b'" >&2; exit 1; }
+            batch_file="$2"
+            shift 2
+            ;;
+        -*)
+            echo "${PROGRAM_NAME}: unrecognized option '$1'" >&2
+            echo "Try '${PROGRAM_NAME} --help' for more information" >&2
+            exit 1
             ;;
         *) 
-            echo "Invalid option or argument '$1'" >&2
-            echo "Try 'e-dig --help' for more information" >&2
-            exit 1 
+            # Treat unflagged loose items as a fallback target URL safely
+            download_urls+=("$1")
+            shift
             ;;
     esac
 done
 
-# --- DOWNLOAD LOGIC ---
-for url in "${DOWNLOAD_URLS[@]}"; do
+# --- RUNTIME DEPENDENCY DEPLOYER ---
+if [[ "$do_initialize" == true ]]; then
+    install_deps
+    exit 0
+fi
+
+# --- CRITICAL RUNTIME ENVIRONMENT VERIFICATION ---
+if ! command -v yt-dlp >/dev/null 2>&1 || ! command -v ffmpeg >/dev/null 2>&1 || ! command -v mpv >/dev/null 2>&1; then
+    echo "${PROGRAM_NAME}: missing core dependencies -- run '${PROGRAM_NAME} -i' first to configure" >&2
+    exit 1
+fi
+
+# --- COMPONENT EXTRACTION & ENVIRONMENT VALIDATION ---
+if [[ -n "$batch_file" ]]; then
+    if [[ ! -e "$batch_file" ]]; then
+        echo "${PROGRAM_NAME}: ${batch_file}: No such file or directory" >&2
+        exit 1
+    elif [[ ! -f "$batch_file" ]]; then
+        echo "${PROGRAM_NAME}: ${batch_file}: Not a regular file" >&2
+        exit 1
+    elif [[ ! -r "$batch_file" ]]; then
+        echo "${PROGRAM_NAME}: ${batch_file}: Permission denied" >&2
+        exit 1
+    fi
+
+    while IFS= read -r line || [[ -n "$line" ]]; do
+        # Strip spatial markers and line return noises cleanly
+        clean_line=$(echo "$line" | tr -d '\r' | xargs)
+        [[ -n "$clean_line" && ! "$clean_line" =~ ^# ]] && download_urls+=("$clean_line")
+    done < "$batch_file"
+fi
+
+if [[ ! -d "$save_path" ]]; then
+    echo "${PROGRAM_NAME}: ${save_path}: No such directory" >&2
+    exit 1
+elif [[ ! -w "$save_path" ]]; then
+    echo "${PROGRAM_NAME}: ${save_path}: Permission denied" >&2
+    exit 1
+fi
+
+if (( ${#download_urls[@]} == 0 )); then
+    echo "${PROGRAM_NAME}: no input target URLs specified" >&2
+    echo "Try '${PROGRAM_NAME} --help' for more information" >&2
+    exit 1
+fi
+
+# --- CORE DOWNLOADING ENGINE ---
+# Set up interactive interrupt tracking arrays safely
+cleanup() {
+    pkill -P $$ yt-dlp ffmpeg mpv 2>/dev/null
+}
+trap 'cleanup; echo -e "\n[Session Interrupted]"; exit 1' SIGINT SIGTERM
+
+for url in "${download_urls[@]}"; do
+    # Remove tracking timestamp sub-variables safely
     clean_url="${url%%&*}"
-    echo "Digging..."
+    echo "${PROGRAM_NAME}: digging audio track elements..."
     
-    FILENAME=$(yt-dlp -x \
-        -P "$SAVE_PATH" \
+    filename_output=$(yt-dlp -x \
+        -P "$save_path" \
         --audio-format wav \
         --audio-quality 0 \
-        --newline \
         --no-warnings \
         --no-playlist \
         --output "%(title)s.%(ext)s" \
         --embed-metadata \
         --print "after_move:filepath" \
-        "$clean_url")
+        "$clean_url" 2>/dev/null)
 
-    if [[ $? -eq 0 ]]; then
-        FINAL_FILE=$(echo "$FILENAME" | tail -n 1)
-        echo "$(basename "$FINAL_FILE") created"
+    if [[ $? -eq 0 && -n "$filename_output" ]]; then
+        final_file=$(echo "$filename_output" | tail -n 1)
+        echo "${PROGRAM_NAME}: success -- '$(basename "$final_file")' created"
         
-        if $PLAY_NOW; then
-            echo "Auditioning sample..."
-            mpv --no-video "$FINAL_FILE"
+        if [[ "$play_now" == true ]]; then
+            echo "${PROGRAM_NAME}: auditioning sample container layout..."
+            mpv --no-video "$final_file"
         fi
     else
-        echo "ERROR - Download failed" >&2
+        echo "${PROGRAM_NAME}: error -- download execution failed for target element URL" >&2
     fi
 done
 
