@@ -3,7 +3,7 @@
 #    / _ \_____ / _` | |/ _` |
 #   |  __/_____| (_| | | (_| |
 #    \___|      \__,_|_|\__, |
-#                     |___/ 
+#                       |___/ 
 #
 # e-dig - A lightweight CLI audio sampling and crate-digging utility
 #
@@ -11,7 +11,7 @@
 
 # --- PROGRAM CONFIGURATION ---
 PROGRAM_NAME="${0##*/}"
-VERSION="1.0.1"
+VERSION="1.0.2"
 
 # --- SYSTEM DEPENDENCY INSTALLER ---
 install_deps() {
