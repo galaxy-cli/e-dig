@@ -1,4 +1,4 @@
-# e-dig
+# ytd
 
 A lightweight, high-performance CLI utility for music producers and crate-diggers to extract high-quality, metadata-embedded audio samples from the web.
 
@@ -10,8 +10,8 @@ A lightweight, high-performance CLI utility for music producers and crate-digger
 
 You can automatically configure and install all system requirements by running:
 ```bash
-chmod +x e-dig
-./e-dig -i
+chmod +x ytd
+./ytd -i
 ```
 
 ### Installation
@@ -19,18 +19,18 @@ chmod +x e-dig
 Give the script execution permissions and move it into your local binary directory:
 
 ```bash
-chmod +x e-dig
-mv e-dig ~/.local/bin/          # Or anywhere else in your $PATH
+chmod +x ytd
+mv ytd ~/.local/bin/          # Or anywhere else in your $PATH
 ```
 
 ### Usage
 
 ```bash
-e-dig -u                       # Prompt mode: paste a URL interactively on launch
-e-dig https://youtu.be...     # Direct mode: pass a URL straight to the command
-e-dig --mpv -u                 # Audition mode: download and play instantly in the terminal
-e-dig -p ~/Samples -u          # Target mode: download straight to a specific directory
-e-dig -b links.txt             # Batch mode: process a text file of multiple URLs
+ytd -u                       # Prompt mode: paste a URL interactively on launch
+ytd https://youtu.be...      # Direct mode: pass a URL straight to the command
+ytd --mpv -u                 # Audition mode: download and play instantly in the terminal
+ytd -p ~/Samples -u          # Target mode: download straight to a specific directory
+ytd -b links.txt             # Batch mode: process a text file of multiple URLs
 ```
 
 ### Options

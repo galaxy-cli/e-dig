@@ -1,13 +1,13 @@
 #!/bin/bash
-#     ___        __| (_) __ _ 
-#    / _ \_____ / _` | |/ _` |
-#   |  __/_____| (_| | | (_| |
-#    \___|      \__,_|_|\__, |
-#                       |___/ 
+#          _      _ 
+#    _   _| |_ __| |
+#   | | | | __/ _` |
+#   | |_| | || (_| |
+#    \__, |\__\__,_|
+#    |___/          
+# ytd - A lightweight CLI audio sampling and crate-digging utility
 #
-# e-dig - A lightweight CLI audio sampling and crate-digging utility
-#
-# Project: https://github.com/galaxy-cli/e-dig
+# Project: https://github.com/galaxy-cli/ytd
 
 # --- PROGRAM CONFIGURATION ---
 PROGRAM_NAME="${0##*/}"
