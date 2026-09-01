@@ -1,27 +1,27 @@
 #!/bin/bash
-#          _      _ 
+#          _      _
 #    _   _| |_ __| |
 #   | | | | __/ _` |
 #   | |_| | || (_| |
 #    \__, |\__\__,_|
-#    |___/          
+#    |___/
 # ytd - A lightweight CLI audio sampling and crate-digging utility
 #
 # Project: https://github.com/galaxy-cli/ytd
 
 # --- PROGRAM CONFIGURATION ---
 PROGRAM_NAME="${0##*/}"
-VERSION="1.0.2"
+VERSION="1.0.3"
 
 # --- SYSTEM DEPENDENCY INSTALLER ---
 install_deps() {
     echo "${PROGRAM_NAME}: verifying external software components..." >&2
     if ! command -v pipx >/dev/null 2>&1; then
-        sudo apt update -qq && sudo apt install -y -qq pipx
+        sudo apt install -y -qq pipx
         pipx ensurepath --quiet
     fi
     if ! command -v ffmpeg >/dev/null 2>&1 || ! command -v mpv >/dev/null 2>&1; then
-        sudo apt update -qq && sudo apt install -y -qq ffmpeg mpv
+        sudo apt install -y -qq ffmpeg mpv
     fi
     if pipx list | grep -q "yt-dlp"; then
         pipx upgrade yt-dlp --quiet
@@ -78,26 +78,26 @@ do_initialize=false
 # --- ARGUMENT PARSING ---
 while [[ $# -gt 0 ]]; do
     case "$1" in
-        --help) 
+        --help)
             usage
-            exit 0 
+            exit 0
             ;;
-        -v|--version) 
+        -v|--version)
             show_version
-            exit 0 
+            exit 0
             ;;
-        -p|--path) 
+        -p|--path)
             [[ -z "$2" || "$2" == -* ]] && { echo "${PROGRAM_NAME}: option requires an argument -- 'p'" >&2; exit 1; }
-            save_path="$2" 
-            shift 2 
+            save_path="$2"
+            shift 2
             ;;
-        --mpv) 
+        --mpv)
             play_now=true
-            shift 
+            shift
             ;;
-        -i|--initialize) 
+        -i|--initialize)
             do_initialize=true
-            shift 
+            shift
             ;;
         -u|--url)
             # Flag matching condition: handles URLs directly if pasted or delays to prompt
@@ -123,7 +123,7 @@ while [[ $# -gt 0 ]]; do
             echo "Try '${PROGRAM_NAME} --help' for more information" >&2
             exit 1
             ;;
-        *) 
+        *)
             # Treat unflagged loose items as a fallback target URL safely
             download_urls+=("$1")
             shift
@@ -188,7 +188,7 @@ for url in "${download_urls[@]}"; do
     # Remove tracking timestamp sub-variables safely
     clean_url="${url%%&*}"
     echo "${PROGRAM_NAME}: digging audio track elements..."
-    
+
     filename_output=$(yt-dlp -x \
         -P "$save_path" \
         --audio-format wav \
@@ -203,7 +203,7 @@ for url in "${download_urls[@]}"; do
     if [[ $? -eq 0 && -n "$filename_output" ]]; then
         final_file=$(echo "$filename_output" | tail -n 1)
         echo "${PROGRAM_NAME}: success -- '$(basename "$final_file")' created"
-        
+
         if [[ "$play_now" == true ]]; then
             echo "${PROGRAM_NAME}: auditioning sample container layout..."
             mpv --no-video "$final_file"
